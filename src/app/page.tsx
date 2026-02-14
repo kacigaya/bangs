@@ -103,12 +103,10 @@ function HomePage() {
   const { setTheme } = useTheme();
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setCurrentUrl(`${window.location.origin}/search?q=%s`);
-      const userLang = navigator.language || (navigator.languages && navigator.languages[0]) || 'fr';
-      if (!userLang.toLowerCase().startsWith('fr')) {
-        setLocale('en');
-      }
+    setCurrentUrl(`${window.location.origin}/search?q=%s`);
+    const userLang = navigator.language || (navigator.languages && navigator.languages[0]) || 'fr';
+    if (!userLang.toLowerCase().startsWith('fr')) {
+      setLocale('en');
     }
     setTheme('dark');
   }, [setTheme]);
@@ -125,22 +123,21 @@ function HomePage() {
     examplesTitle: locale === 'fr' ? "Exemples d'utilisation" : 'Usage examples',
   } as const;
 
-  // English translations for bang descriptions (same order as BANGS array)
-  const descEn: Record<number, string> = {
-    0: 'Universal search on Google',
-    1: 'Video search on YouTube',
-    2: 'Wikipedia articles',
-    3: 'Code and projects on GitHub',
-    4: 'Direct access to GitHub repos',
-    5: 'Location and navigation',
-    6: 'Private and secure search',
-    7: 'Social media search',
-    8: 'Discussions and communities',
-    9: "OpenAI's AI assistant",
-    10: 'Image search',
+  const descEn: Record<string, string> = {
+    g: 'Universal search on Google',
+    y: 'Video search on YouTube',
+    w: 'Wikipedia articles',
+    gh: 'Code and projects on GitHub',
+    ghr: 'Direct access to GitHub repos',
+    m: 'Location and navigation',
+    d: 'Private and secure search',
+    x: 'Social media search',
+    r: 'Discussions and communities',
+    c: "OpenAI's AI assistant",
+    i: 'Image search',
   };
 
-  const getDesc = (index: number) => (locale === 'fr' ? BANGS[index].description : descEn[index]);
+  const getDesc = (bang: typeof BANGS[number]) => (locale === 'fr' ? bang.description : descEn[bang.trigger]);
 
   const examples = locale === 'fr'
     ? [
@@ -375,58 +372,58 @@ function HomePage() {
             <GridItem
               area="md:[grid-area:1/1/2/7]"
               icon={<Image className="w-5 h-5 text-blue-500" />}
-              title={BANGS[10].s}
-              description={getDesc(10)}
-              bang={BANGS[10].t}
+              title={BANGS[10].name}
+              description={getDesc(BANGS[10])}
+              bang={BANGS[10].trigger}
             />
             <GridItem
               area="md:[grid-area:1/7/2/13]"
               icon={<Youtube className="w-5 h-5 text-red-500" />}
-              title={BANGS[1].s}
-              description={getDesc(1)}
-              bang={BANGS[1].t}
+              title={BANGS[1].name}
+              description={getDesc(BANGS[1])}
+              bang={BANGS[1].trigger}
             />
             <GridItem
               area="md:[grid-area:2/1/3/5]"
               icon={<Globe className="w-5 h-5 text-yellow-500" />}
-              title={BANGS[2].s}
-              description={getDesc(2)}
-              bang={BANGS[2].t}
+              title={BANGS[2].name}
+              description={getDesc(BANGS[2])}
+              bang={BANGS[2].trigger}
             />
             <GridItem
               area="md:[grid-area:2/5/3/9]"
               icon={<Github className="w-5 h-5 text-white" />}
-              title={BANGS[3].s}
-              description={getDesc(3)}
-              bang={BANGS[3].t}
+              title={BANGS[3].name}
+              description={getDesc(BANGS[3])}
+              bang={BANGS[3].trigger}
             />
             <GridItem
               area="md:[grid-area:2/9/3/13]"
               icon={<X className="w-5 h-5 text-white" />}
-              title={BANGS[7].s}
-              description={getDesc(7)}
-              bang={BANGS[7].t}
+              title={BANGS[7].name}
+              description={getDesc(BANGS[7])}
+              bang={BANGS[7].trigger}
             />
             <GridItem
               area="md:[grid-area:3/1/4/7]"
               icon={<MapPin className="w-5 h-5 text-green-500" />}
-              title={BANGS[5].s}
-              description={getDesc(5)}
-              bang={BANGS[5].t}
+              title={BANGS[5].name}
+              description={getDesc(BANGS[5])}
+              bang={BANGS[5].trigger}
             />
             <GridItem
               area="md:[grid-area:3/7/4/13]"
               icon={<Brain className="w-5 h-5 text-purple-500" />}
-              title={BANGS[9].s}
-              description={getDesc(9)}
-              bang={BANGS[9].t}
+              title={BANGS[9].name}
+              description={getDesc(BANGS[9])}
+              bang={BANGS[9].trigger}
             />
             <GridItem
               area="md:[grid-area:4/1/5/13]"
               icon={<Search className="w-5 h-5 text-orange-500" />}
-              title={BANGS[6].s}
-              description={getDesc(6)}
-              bang={BANGS[6].t}
+              title={BANGS[6].name}
+              description={getDesc(BANGS[6])}
+              bang={BANGS[6].trigger}
             />
           </ul>
         </div>
@@ -458,12 +455,16 @@ function HomePage() {
         </div>
       </div>
       
-      <footer className="flex gap-2 justify-center items-center mt-8 mt-10 mb-10 text-sm text-center text-gray-400" onClick={() => window.open("https://github.com/gayakaci20/bangs", "_blank")} >
-        <Github 
-          className="text-gray-400 cursor-pointer hover:text-gray-300"
-          aria-label="GitHub repository"
-        />
-        <span className="text-gray-400 hover:text-gray-300">Open Source Project by Gaya KACI</span>
+      <footer className="flex gap-2 justify-center items-center mt-10 mb-10 text-sm text-center text-gray-400">
+        <a
+          href="https://github.com/gayakaci20/bangs"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex gap-2 items-center text-gray-400 hover:text-gray-300"
+        >
+          <Github className="w-4 h-4" aria-hidden="true" />
+          <span>Open Source Project by Gaya KACI</span>
+        </a>
       </footer>
     </div>
   );

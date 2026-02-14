@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import { useTheme } from 'next-themes';
 import { 
   Input, 
@@ -96,18 +96,23 @@ const GridItem = ({ area, icon, title, description, bang }: GridItemProps) => {
   );
 };
 
+const noopSubscribe = () => () => {};
+
 function HomePage() {
-  const [currentUrl, setCurrentUrl] = useState('');
-  const [locale, setLocale] = useState<'fr' | 'en'>('fr');
+  const currentUrl = useSyncExternalStore(
+    noopSubscribe,
+    () => `${window.location.origin}/search?q=%s`,
+    () => ''
+  );
+  const locale = useSyncExternalStore(
+    noopSubscribe,
+    () => (navigator.language || 'fr').toLowerCase().startsWith('fr') ? 'fr' as const : 'en' as const,
+    () => 'fr' as const
+  );
   const [showInstructions, setShowInstructions] = useState(false);
   const { setTheme } = useTheme();
 
   useEffect(() => {
-    setCurrentUrl(`${window.location.origin}/search?q=%s`);
-    const userLang = navigator.language || (navigator.languages && navigator.languages[0]) || 'fr';
-    if (!userLang.toLowerCase().startsWith('fr')) {
-      setLocale('en');
-    }
     setTheme('dark');
   }, [setTheme]);
 

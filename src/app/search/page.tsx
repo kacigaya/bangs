@@ -7,11 +7,9 @@ import { getBangRedirectUrl } from '@/lib/bangs';
 export default function SearchPage() {
   useEffect(() => {
     const q = new URL(window.location.href).searchParams.get('q')?.trim() || '';
-    console.log('Search query:', q);
-    
+
     if (q) {
       const redirectUrl = getBangRedirectUrl(q);
-      console.log('Redirect URL:', redirectUrl);
       window.location.replace(redirectUrl);
     } else {
       window.location.replace('/');

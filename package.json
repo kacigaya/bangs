@@ -32,5 +32,10 @@
     "eslint-config-next": "^16.1.6",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3"
-  }
+  },
+  "trustedDependencies": [
+    "@heroui/shared-utils",
+    "@tsparticles/engine",
+    "unrs-resolver"
+  ]
 }

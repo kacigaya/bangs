@@ -20,7 +20,39 @@ import { BANGS } from '@/lib/bangs';
  * Spec: https://developer.mozilla.org/en-US/docs/Web/OpenSearch#providing_search_suggestions
  */
 
-// Server-side singleton — initialised once per cold start
+// ─── TTL Cache ───────────────────────────────────────────────────────────────
+// Simple in-memory cache to avoid hammering Google Suggest on every keystroke.
+// Key: "query:lang"  |  TTL: 60s  |  Max entries: 500 (evict oldest on overflow)
+
+interface CacheEntry {
+  results: string[];
+  expiresAt: number;
+}
+
+const suggestCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 60_000;
+const CACHE_MAX = 500;
+
+function cacheGet(key: string): string[] | null {
+  const entry = suggestCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    suggestCache.delete(key);
+    return null;
+  }
+  return entry.results;
+}
+
+function cacheSet(key: string, results: string[]): void {
+  if (suggestCache.size >= CACHE_MAX) {
+    // Evict the oldest entry (first inserted key in insertion-order Map)
+    suggestCache.delete(suggestCache.keys().next().value!);
+  }
+  suggestCache.set(key, { results, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+// ─── Engine singleton ────────────────────────────────────────────────────────
+
 let engineReady = false;
 function ensureEngine() {
   if (!engineReady) {
@@ -30,6 +62,8 @@ function ensureEngine() {
   }
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 /** Detect the user's preferred language from the Accept-Language header */
 function getLang(request: NextRequest): string {
   const al = request.headers.get('accept-language') ?? '';
@@ -37,8 +71,12 @@ function getLang(request: NextRequest): string {
   return primary || 'en';
 }
 
-/** Fetch Google Suggest with a timeout; returns [] on any failure */
+/** Fetch Google Suggest with a timeout and TTL cache; returns [] on any failure */
 async function fetchGoogleSuggest(query: string, lang: string): Promise<string[]> {
+  const cacheKey = `${query}:${lang}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
   try {
     const url = `https://suggestqueries.google.com/complete/search?client=firefox&hl=${encodeURIComponent(lang)}&q=${encodeURIComponent(query)}`;
     const res = await fetch(url, {
@@ -50,7 +88,9 @@ async function fetchGoogleSuggest(query: string, lang: string): Promise<string[]
     });
     if (!res.ok) return [];
     const data = await res.json() as [string, string[]];
-    return Array.isArray(data[1]) ? data[1].slice(0, 10) : [];
+    const results = Array.isArray(data[1]) ? data[1].slice(0, 10) : [];
+    cacheSet(cacheKey, results);
+    return results;
   } catch {
     return [];
   }
@@ -60,6 +100,25 @@ async function fetchGoogleSuggest(query: string, lang: string): Promise<string[]
 function norm(s: string): string {
   return s.toLowerCase().replace(/\s+/g, ' ').trim();
 }
+
+/**
+ * Match bangs against a prefix with two tiers:
+ *   Tier 1 — trigger starts with prefix  (e.g. "!g" → !g, !gh, !ghr)
+ *   Tier 2 — name starts with prefix     (e.g. "!g" → !i via "Google Images")
+ * Tier 1 results always appear before Tier 2. Both tiers are capped so name
+ * matches never push out trigger matches.
+ */
+function matchBangs(prefix: string, maxTier1 = 5, maxTier2 = 2) {
+  const p = prefix.toLowerCase();
+  const tier1 = BANGS.filter(b => b.trigger.startsWith(p)).slice(0, maxTier1);
+  const tier1Triggers = new Set(tier1.map(b => b.trigger));
+  const tier2 = BANGS
+    .filter(b => !tier1Triggers.has(b.trigger) && b.name.toLowerCase().startsWith(p))
+    .slice(0, maxTier2);
+  return [...tier1, ...tier2];
+}
+
+// ─── Route handler ───────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get('q')?.trim() ?? '';
@@ -93,27 +152,24 @@ export async function GET(request: NextRequest) {
     const bangPrefix = parts[0]?.toLowerCase() ?? '';
     const textAfterBang = parts.slice(1).join(' ').trim();
 
-    // 1a. Matching bang shortcuts (always first)
-    const bangMatches = BANGS.filter(
-      b => b.trigger.startsWith(bangPrefix) || b.name.toLowerCase().startsWith(bangPrefix)
-    ).slice(0, 5);
+    // Ranked bang matches: trigger-prefix first, then name-prefix
+    const bangMatches = matchBangs(bangPrefix);
 
     for (const b of bangMatches) {
       if (textAfterBang) {
-        // "!y lofi" → show "!y lofi" itself as first suggestion
         addSuggestion(`!${b.trigger} ${textAfterBang}`);
       } else {
-        // "!y" with no text → show "!y — YouTube"
         addSuggestion(`!${b.trigger} — ${b.name}`);
       }
     }
 
-    // 1b. If there's a text portion, fetch Google suggestions and prefix with bang
+    // If there's a text portion, fetch Google suggestions and prefix with the
+    // best trigger match (first tier-1 hit, i.e. exact trigger prefix match)
     if (textAfterBang && bangMatches.length > 0) {
-      const exact = bangMatches[0];
+      const best = bangMatches[0];
       const googleSuggestions = await fetchGoogleSuggest(textAfterBang, lang);
       for (const gs of googleSuggestions) {
-        addSuggestion(`!${exact.trigger} ${gs}`);
+        addSuggestion(`!${best.trigger} ${gs}`);
       }
     }
 
@@ -121,18 +177,15 @@ export async function GET(request: NextRequest) {
     // ── Plain text query ─────────────────────────────────────────────────────
     // Google Suggest is the primary source; local engine fills gaps
 
-    // Fetch Google and local in parallel
     const [googleSuggestions, localPredictions] = await Promise.all([
       fetchGoogleSuggest(q, lang),
       Promise.resolve(predict(q, 8)),
     ]);
 
-    // Google results first — strongest signal for real-world queries
     for (const gs of googleSuggestions) {
       addSuggestion(gs);
     }
 
-    // Local engine results (Trie + fuzzy + N-Gram) as supplementary
     const merged = mergeWithGoogle(localPredictions, [], 8);
     for (const p of merged) {
       addSuggestion(p.text);

@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Search, Youtube, Globe, Github, Brain, MapPin, MessageCircle, X, Image } from 'lucide-react';
+import { Search, Youtube, Globe, Github, Brain, MapPin, MessageCircle, X, Image, ShoppingCart, Languages, BookOpen, Package, HelpCircle } from 'lucide-react';
 
 export interface Bang {
   trigger: string;
@@ -12,6 +12,7 @@ export interface Bang {
 }
 
 export const BANGS: Bang[] = [
+  // ── Search engines ──────────────────────────────────────────────────────────
   {
     trigger: 'g',
     url: 'https://www.google.com/search?q={{{s}}}',
@@ -22,49 +23,13 @@ export const BANGS: Bang[] = [
     description: 'Recherche universelle sur Google',
   },
   {
-    trigger: 'y',
-    url: 'https://www.youtube.com/results?search_query={{{s}}}',
-    domain: 'www.youtube.com',
-    name: 'YouTube',
-    icon: Youtube,
-    color: 'danger',
-    description: 'Recherche de vidéos sur YouTube',
-  },
-  {
-    trigger: 'w',
-    url: 'https://wikipedia.org/search?q={{{s}}}',
-    domain: 'wikipedia.org',
-    name: 'Wikipedia',
-    icon: Globe,
-    color: 'secondary',
-    description: 'Articles Wikipédia',
-  },
-  {
-    trigger: 'gh',
-    url: 'https://github.com/search?q={{{s}}}',
-    domain: 'github.com',
-    name: 'GitHub',
-    icon: Github,
-    color: 'default',
-    description: 'Code et projets sur GitHub',
-  },
-  {
-    trigger: 'ghr',
-    url: 'https://github.com/{{{s}}}',
-    domain: 'github.com',
-    name: 'GitHub Repository',
-    icon: Github,
-    color: 'default',
-    description: 'Accès direct aux repos GitHub',
-  },
-  {
-    trigger: 'm',
-    url: 'https://www.google.com/maps/search/?api=1&query={{{s}}}',
-    domain: 'maps.google.com',
-    name: 'Maps',
-    icon: MapPin,
-    color: 'success',
-    description: 'Localisation et navigation',
+    trigger: 'b',
+    url: 'https://www.bing.com/search?q={{{s}}}',
+    domain: 'www.bing.com',
+    name: 'Bing',
+    icon: Search,
+    color: 'primary',
+    description: 'Recherche sur Bing',
   },
   {
     trigger: 'd',
@@ -74,6 +39,16 @@ export const BANGS: Bang[] = [
     icon: Search,
     color: 'secondary',
     description: 'Recherche privée et sécurisée',
+  },
+  // ── Video / Social ──────────────────────────────────────────────────────────
+  {
+    trigger: 'y',
+    url: 'https://www.youtube.com/results?search_query={{{s}}}',
+    domain: 'www.youtube.com',
+    name: 'YouTube',
+    icon: Youtube,
+    color: 'danger',
+    description: 'Recherche de vidéos sur YouTube',
   },
   {
     trigger: 'x',
@@ -93,6 +68,82 @@ export const BANGS: Bang[] = [
     color: 'danger',
     description: 'Discussions et communautés',
   },
+  // ── Knowledge ───────────────────────────────────────────────────────────────
+  {
+    trigger: 'w',
+    url: 'https://en.wikipedia.org/w/index.php?search={{{s}}}',
+    domain: 'wikipedia.org',
+    name: 'Wikipedia',
+    icon: Globe,
+    color: 'secondary',
+    description: 'Articles Wikipédia',
+  },
+  {
+    trigger: 'mdn',
+    url: 'https://developer.mozilla.org/en-US/search?q={{{s}}}',
+    domain: 'developer.mozilla.org',
+    name: 'MDN Web Docs',
+    icon: BookOpen,
+    color: 'primary',
+    description: 'Documentation web (HTML, CSS, JS)',
+  },
+  {
+    trigger: 'so',
+    url: 'https://stackoverflow.com/search?q={{{s}}}',
+    domain: 'stackoverflow.com',
+    name: 'Stack Overflow',
+    icon: HelpCircle,
+    color: 'warning',
+    description: 'Questions et réponses pour développeurs',
+  },
+  // ── Code ────────────────────────────────────────────────────────────────────
+  {
+    trigger: 'gh',
+    url: 'https://github.com/search?q={{{s}}}',
+    domain: 'github.com',
+    name: 'GitHub',
+    icon: Github,
+    color: 'default',
+    description: 'Code et projets sur GitHub',
+  },
+  {
+    trigger: 'ghr',
+    url: 'https://github.com/{{{s}}}',
+    domain: 'github.com',
+    name: 'GitHub Repository',
+    icon: Github,
+    color: 'default',
+    description: 'Accès direct aux repos GitHub',
+  },
+  {
+    trigger: 'npm',
+    url: 'https://www.npmjs.com/search?q={{{s}}}',
+    domain: 'www.npmjs.com',
+    name: 'npm',
+    icon: Package,
+    color: 'danger',
+    description: 'Packages Node.js sur npm',
+  },
+  // ── Maps / Tools ─────────────────────────────────────────────────────────────
+  {
+    trigger: 'm',
+    url: 'https://www.google.com/maps/search/?api=1&query={{{s}}}',
+    domain: 'maps.google.com',
+    name: 'Maps',
+    icon: MapPin,
+    color: 'success',
+    description: 'Localisation et navigation',
+  },
+  {
+    trigger: 't',
+    url: 'https://translate.google.com/?q={{{s}}}&op=translate',
+    domain: 'translate.google.com',
+    name: 'Translate',
+    icon: Languages,
+    color: 'primary',
+    description: 'Google Traduction',
+  },
+  // ── AI ──────────────────────────────────────────────────────────────────────
   {
     trigger: 'c',
     url: 'https://chatgpt.com/?q={{{s}}}',
@@ -102,6 +153,16 @@ export const BANGS: Bang[] = [
     color: 'warning',
     description: 'Assistant IA de OpenAI',
   },
+  // ── Shopping / Images ────────────────────────────────────────────────────────
+  {
+    trigger: 'a',
+    url: 'https://www.amazon.com/s?k={{{s}}}',
+    domain: 'www.amazon.com',
+    name: 'Amazon',
+    icon: ShoppingCart,
+    color: 'warning',
+    description: 'Shopping sur Amazon',
+  },
   {
     trigger: 'i',
     url: 'https://www.google.com/search?tbm=isch&q={{{s}}}&tbs=imgo:1',
@@ -110,7 +171,7 @@ export const BANGS: Bang[] = [
     icon: Image,
     color: 'secondary',
     description: 'Recherche d\'images',
-  }
+  },
 ];
 
 const DEFAULT_BANG = BANGS.find((b) => b.trigger === 'g')!;

@@ -17,8 +17,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json([], { status: 200 });
   }
 
+  // Forward the user's preferred language so Google returns locale-aware results
+  const al = request.headers.get('accept-language') ?? '';
+  const lang = al.split(',')[0]?.split(';')[0]?.trim() || 'en';
+
   try {
-    const googleUrl = `https://suggestqueries.google.com/complete/search?client=firefox&hl=en&q=${encodeURIComponent(q)}`;
+    const googleUrl = `https://suggestqueries.google.com/complete/search?client=firefox&hl=${encodeURIComponent(lang)}&q=${encodeURIComponent(q)}`;
 
     const response = await fetch(googleUrl, {
       headers: {

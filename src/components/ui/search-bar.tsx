@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Zap, ArrowRight } from 'lucide-react';
+import { Search, Zap, ArrowRight, Clock, X } from 'lucide-react';
 import { BANGS } from '@/lib/bangs';
 import {
   initSearchEngine,
@@ -26,30 +26,49 @@ interface TextSuggestion {
   score: number;
 }
 
-type SuggestionItem = BangSuggestion | TextSuggestion;
+interface RecentSuggestion {
+  type: 'recent';
+  text: string;
+}
+
+type SuggestionItem = BangSuggestion | TextSuggestion | RecentSuggestion;
+
+// ─── Search history (localStorage) ───────────────────────────────────────────
+
+const HISTORY_KEY = 'bangs:history';
+const HISTORY_MAX = 8;
+
+function loadHistory(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]') as string[];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(items: string[]): void {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_MAX)));
+  } catch {
+    // storage unavailable — silent fail
+  }
+}
+
+function addToHistory(query: string): string[] {
+  const trimmed = query.trim();
+  if (!trimmed) return loadHistory();
+  const existing = loadHistory().filter(h => h.toLowerCase() !== trimmed.toLowerCase());
+  const updated = [trimmed, ...existing].slice(0, HISTORY_MAX);
+  saveHistory(updated);
+  return updated;
+}
+
+function clearHistory(): void {
+  try { localStorage.removeItem(HISTORY_KEY); } catch { /* noop */ }
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Source label shown as a subtle badge */
-function sourceLabel(source: Prediction['source']): string {
-  switch (source) {
-    case 'prefix': return 'prefix';
-    case 'trie':   return 'trie';
-    case 'ngram':  return 'n-gram';
-    case 'fuzzy':  return 'fuzzy';
-    case 'google': return 'google';
-  }
-}
-
-function sourceBadgeClass(source: Prediction['source']): string {
-  switch (source) {
-    case 'prefix': return 'text-yellow-400/70 bg-yellow-400/10';
-    case 'trie':   return 'text-blue-400/70 bg-blue-400/10';
-    case 'ngram':  return 'text-purple-400/70 bg-purple-400/10';
-    case 'fuzzy':  return 'text-orange-400/70 bg-orange-400/10';
-    case 'google': return 'text-green-400/70 bg-green-400/10';
-  }
-}
 
 /** Bold the part of `text` that matches `query` */
 function highlightMatch(text: string, query: string): React.ReactNode {
@@ -81,7 +100,6 @@ let engineReady = false;
 
 function ensureEngine() {
   if (!engineReady) {
-    // Seed the corpus with bang names and triggers
     const bangCorpus = BANGS.flatMap(b => [b.name.toLowerCase(), b.trigger]);
     initSearchEngine(bangCorpus);
     engineReady = true;
@@ -101,6 +119,7 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
   const [activeIndex, setActiveIndex] = useState(-1);
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [history, setHistory] = useState<string[]>([]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -112,8 +131,11 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
     ? 'Essayez !y lofi music ou recherchez quelque chose…'
     : 'Try !y lofi music or search anything…';
 
-  // Init engine on first render
-  useEffect(() => { ensureEngine(); }, []);
+  // Init engine + history on first render
+  useEffect(() => {
+    ensureEngine();
+    setHistory(loadHistory());
+  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -126,11 +148,30 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  // Show recent history when input is focused and empty
+  function handleFocus() {
+    if (!query.trim() && history.length > 0) {
+      const recentItems: RecentSuggestion[] = history.map(h => ({ type: 'recent', text: h }));
+      setSuggestions(recentItems);
+      setOpen(true);
+    } else if (suggestions.length > 0) {
+      setOpen(true);
+    }
+  }
+
   // Build suggestions whenever debounced query changes
   const buildSuggestions = useCallback(async (q: string) => {
     if (!q.trim()) {
-      setSuggestions([]);
-      setOpen(false);
+      // Show recent history when query is cleared
+      const currentHistory = loadHistory();
+      if (currentHistory.length > 0) {
+        const recentItems: RecentSuggestion[] = currentHistory.map(h => ({ type: 'recent', text: h }));
+        setSuggestions(recentItems);
+        setOpen(true);
+      } else {
+        setSuggestions([]);
+        setOpen(false);
+      }
       return;
     }
 
@@ -142,12 +183,15 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
     const isBangQuery = q.startsWith('!');
     if (isBangQuery) {
       const bangPrefix = q.slice(1).toLowerCase();
-      const bangMatches = BANGS.filter(b =>
-        b.trigger.startsWith(bangPrefix) ||
-        b.name.toLowerCase().startsWith(bangPrefix)
-      ).slice(0, 5);
+      // Tier 1: trigger prefix matches
+      const tier1 = BANGS.filter(b => b.trigger.startsWith(bangPrefix)).slice(0, 5);
+      const tier1Triggers = new Set(tier1.map(b => b.trigger));
+      // Tier 2: name prefix matches (max 2, only if not already in tier1)
+      const tier2 = BANGS
+        .filter(b => !tier1Triggers.has(b.trigger) && b.name.toLowerCase().startsWith(bangPrefix))
+        .slice(0, 2);
 
-      for (const b of bangMatches) {
+      for (const b of [...tier1, ...tier2]) {
         items.push({
           type: 'bang',
           trigger: b.trigger,
@@ -159,7 +203,7 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
 
     // ── Extract the text part of the query (strip leading !bang prefix) ──
     const textQuery = isBangQuery
-      ? q.replace(/^!\S+\s*/, '').trim()  // text after the bang
+      ? q.replace(/^!\S+\s*/, '').trim()
       : q;
 
     const queryForSuggest = textQuery || (isBangQuery ? '' : q);
@@ -227,7 +271,6 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
         e.preventDefault();
         selectSuggestion(suggestions[activeIndex]);
       } else {
-        // Submit current query
         submitQuery(query);
       }
     }
@@ -235,7 +278,6 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
 
   function selectSuggestion(item: SuggestionItem) {
     if (item.type === 'bang') {
-      // Insert bang prefix so the user can keep typing
       const newVal = `!${item.trigger} `;
       setQuery(newVal);
       setSuggestions([]);
@@ -243,7 +285,7 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
       setActiveIndex(-1);
       setTimeout(() => inputRef.current?.focus(), 0);
     } else {
-      // Fill input and submit
+      // 'text' or 'recent'
       setQuery(item.text);
       setOpen(false);
       submitQuery(item.text);
@@ -252,6 +294,8 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
 
   function submitQuery(q: string) {
     if (!q.trim()) return;
+    const updated = addToHistory(q);
+    setHistory(updated);
     window.location.href = `/search?q=${encodeURIComponent(q)}`;
   }
 
@@ -264,7 +308,19 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
     }
   }
 
+  function handleClearHistory(e: React.MouseEvent) {
+    e.stopPropagation();
+    clearHistory();
+    setHistory([]);
+    setSuggestions([]);
+    setOpen(false);
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────
+  const hasRecent = suggestions.some(s => s.type === 'recent');
+  const hasBangs  = suggestions.some(s => s.type === 'bang');
+  const hasText   = suggestions.some(s => s.type === 'text');
+
   return (
     <div ref={containerRef} className="relative w-full max-w-2xl mx-auto">
       <form onSubmit={handleSubmit} autoComplete="off">
@@ -278,7 +334,7 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            onFocus={() => { if (suggestions.length > 0) setOpen(true); }}
+            onFocus={handleFocus}
             placeholder={placeholder ?? defaultPlaceholder}
             className="w-full pl-12 pr-12 py-4 text-sm text-white placeholder-gray-500
                        bg-gray-900/80 border border-gray-700 rounded-2xl
@@ -314,8 +370,56 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
                      backdrop-blur-sm shadow-2xl shadow-black/40
                      overflow-hidden"
         >
-          {/* Bang section */}
-          {suggestions.some(s => s.type === 'bang') && (
+          {/* ── Recent history section ─────────────────────────────────── */}
+          {hasRecent && (
+            <>
+              <div className="px-4 pt-3 pb-1 flex items-center gap-2">
+                <Clock className="w-3 h-3 text-gray-500" />
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider flex-1">
+                  {locale === 'fr' ? 'Récent' : 'Recent'}
+                </span>
+                <button
+                  onMouseDown={handleClearHistory}
+                  className="flex items-center gap-1 text-[10px] text-gray-600 hover:text-gray-400 transition-colors"
+                  aria-label="Clear history"
+                >
+                  <X className="w-3 h-3" />
+                  {locale === 'fr' ? 'Effacer' : 'Clear'}
+                </button>
+              </div>
+              {suggestions
+                .filter((s): s is RecentSuggestion => s.type === 'recent')
+                .map(item => {
+                  const globalIdx = suggestions.indexOf(item);
+                  return (
+                    <div
+                      key={`recent-${item.text}`}
+                      id={`suggestion-${globalIdx}`}
+                      role="option"
+                      aria-selected={globalIdx === activeIndex}
+                      onMouseEnter={() => setActiveIndex(globalIdx)}
+                      onMouseDown={e => { e.preventDefault(); selectSuggestion(item); }}
+                      className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors duration-100
+                        ${globalIdx === activeIndex
+                          ? 'bg-yellow-500/10 border-l-2 border-yellow-400'
+                          : 'border-l-2 border-transparent hover:bg-gray-800/60'
+                        }`}
+                    >
+                      <Clock className="flex-shrink-0 w-3.5 h-3.5 text-gray-600" />
+                      <span className="text-sm text-gray-400 flex-1 truncate">{item.text}</span>
+                    </div>
+                  );
+                })}
+            </>
+          )}
+
+          {/* Divider between recent and bangs */}
+          {hasRecent && (hasBangs || hasText) && (
+            <div className="mx-4 my-1 border-t border-gray-700/60" />
+          )}
+
+          {/* ── Bang section ──────────────────────────────────────────────── */}
+          {hasBangs && (
             <>
               <div className="px-4 pt-3 pb-1 flex items-center gap-2">
                 <Zap className="w-3 h-3 text-yellow-400" />
@@ -325,7 +429,7 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
               </div>
               {suggestions
                 .filter((s): s is BangSuggestion => s.type === 'bang')
-                .map((item, i) => {
+                .map(item => {
                   const globalIdx = suggestions.indexOf(item);
                   return (
                     <div
@@ -341,7 +445,6 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
                           : 'border-l-2 border-transparent hover:bg-gray-800/60'
                         }`}
                     >
-                      {/* Badge */}
                       <span className="flex-shrink-0 px-2 py-0.5 text-xs font-bold text-yellow-400 bg-yellow-400/15 rounded-md border border-yellow-400/20">
                         !{item.trigger}
                       </span>
@@ -354,17 +457,17 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
           )}
 
           {/* Divider between bangs and text */}
-          {suggestions.some(s => s.type === 'bang') && suggestions.some(s => s.type === 'text') && (
+          {hasBangs && hasText && (
             <div className="mx-4 my-1 border-t border-gray-700/60" />
           )}
 
-          {/* Text suggestion section */}
-          {suggestions.some(s => s.type === 'text') && (
+          {/* ── Text suggestion section ───────────────────────────────────── */}
+          {hasText && (
             <>
               <div className="px-4 pt-2 pb-1 flex items-center gap-2">
                 <Search className="w-3 h-3 text-gray-500" />
                 <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Suggestions
+                  {locale === 'fr' ? 'Suggestions' : 'Suggestions'}
                 </span>
               </div>
               {suggestions
@@ -391,9 +494,6 @@ export function SearchBar({ placeholder, locale = 'en' }: SearchBarProps) {
                       <Search className="flex-shrink-0 w-3.5 h-3.5 text-gray-600" />
                       <span className="text-sm text-gray-300 flex-1 truncate">
                         {highlightMatch(item.text, rawQuery)}
-                      </span>
-                      <span className={`flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded uppercase tracking-wide ${sourceBadgeClass(item.source)}`}>
-                        {sourceLabel(item.source)}
                       </span>
                     </div>
                   );

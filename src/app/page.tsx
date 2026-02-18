@@ -24,6 +24,7 @@ import {
 import { GlowingEffect } from '@/components/ui/glowing-effect';
 import { SparklesCore } from '@/components/ui/sparkles';
 import SplitText from '@/components/ui/split-text';
+import { SearchBar } from '@/components/ui/search-bar';
 import { BANGS } from '@/lib/bangs';
 
 function CopyButton({ url }: { url: string }) {
@@ -272,6 +273,11 @@ function HomePage() {
           <p className="mx-auto max-w-2xl text-xl text-gray-400">
             {t.tagline}
           </p>
+        </div>
+
+        {/* Live Search Bar */}
+        <div className="mx-auto mb-10 max-w-2xl">
+          <SearchBar locale={locale} />
         </div>
 
         {/* URL Configuration */}

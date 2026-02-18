@@ -20,6 +20,12 @@ import {
   Image,
   ChevronDown,
   ChevronUp,
+  ShoppingCart,
+  Languages,
+  BookOpen,
+  Package,
+  HelpCircle,
+  MessageCircle,
 } from 'lucide-react';
 import { GlowingEffect } from '@/components/ui/glowing-effect';
 import { SparklesCore } from '@/components/ui/sparkles';
@@ -53,17 +59,42 @@ function CopyButton({ url }: { url: string }) {
   );
 }
 
+/** Maps a bang trigger to its coloured icon */
+function BangIcon({ trigger }: { trigger: string }) {
+  const cls = 'w-5 h-5';
+  switch (trigger) {
+    case 'g':   return <Search      className={`${cls} text-blue-400`} />;
+    case 'b':   return <Search      className={`${cls} text-cyan-400`} />;
+    case 'd':   return <Search      className={`${cls} text-orange-400`} />;
+    case 'y':   return <Youtube     className={`${cls} text-red-500`} />;
+    case 'x':   return <X           className={`${cls} text-gray-300`} />;
+    case 'r':   return <MessageCircle className={`${cls} text-orange-500`} />;
+    case 'w':   return <Globe       className={`${cls} text-yellow-400`} />;
+    case 'mdn': return <BookOpen    className={`${cls} text-indigo-400`} />;
+    case 'so':  return <HelpCircle  className={`${cls} text-amber-400`} />;
+    case 'gh':  return <Github      className={`${cls} text-white`} />;
+    case 'ghr': return <Github      className={`${cls} text-gray-400`} />;
+    case 'npm': return <Package     className={`${cls} text-red-400`} />;
+    case 'm':   return <MapPin      className={`${cls} text-green-400`} />;
+    case 't':   return <Languages   className={`${cls} text-sky-400`} />;
+    case 'c':   return <Brain       className={`${cls} text-purple-400`} />;
+    case 'a':   return <ShoppingCart className={`${cls} text-yellow-500`} />;
+    case 'i':   return <Image       className={`${cls} text-blue-400`} />;
+    default:    return <Search      className={`${cls} text-gray-400`} />;
+  }
+}
+
 interface GridItemProps {
-  area: string;
+  area?: string;
   icon: React.ReactNode;
   title: string;
   description: string;
   bang: string;
 }
 
-const GridItem = ({ area, icon, title, description, bang }: GridItemProps) => {
+const GridItem = ({ area = '', icon, title, description, bang }: GridItemProps) => {
   return (
-    <li className={`list-none min-h-[14rem] ${area}`}>
+    <li className={`list-none min-h-[11rem] ${area}`}>
       <div className="relative p-2 h-full rounded-2xl border border-gray-800 md:rounded-3xl md:p-3">
         <GlowingEffect
           spread={40}
@@ -414,73 +445,19 @@ function HomePage() {
           )}
         </div>
 
-        {/* Bangs Grid avec effet de lueur */}
-        <div className="mx-auto mb-12 max-w-2xl">
+        {/* Bangs Grid */}
+        <div className="mx-auto mb-12 max-w-4xl">
           <h2 className="mb-8 text-3xl font-semibold text-center text-white">{t.bangsTitle}</h2>
-          <ul className="grid grid-cols-2 grid-rows-none gap-6 md:grid-cols-12 md:grid-rows-4lg:gap-6">
-            {(() => {
-              const bang = (trigger: string) => BANGS.find(b => b.trigger === trigger)!;
-              return (
-                <>
-                  <GridItem
-                    area="md:[grid-area:1/1/2/7]"
-                    icon={<Image className="w-5 h-5 text-blue-500" />}
-                    title={bang('i').name}
-                    description={getDesc(bang('i'))}
-                    bang={bang('i').trigger}
-                  />
-                  <GridItem
-                    area="md:[grid-area:1/7/2/13]"
-                    icon={<Youtube className="w-5 h-5 text-red-500" />}
-                    title={bang('y').name}
-                    description={getDesc(bang('y'))}
-                    bang={bang('y').trigger}
-                  />
-                  <GridItem
-                    area="md:[grid-area:2/1/3/5]"
-                    icon={<Globe className="w-5 h-5 text-yellow-500" />}
-                    title={bang('w').name}
-                    description={getDesc(bang('w'))}
-                    bang={bang('w').trigger}
-                  />
-                  <GridItem
-                    area="md:[grid-area:2/5/3/9]"
-                    icon={<Github className="w-5 h-5 text-white" />}
-                    title={bang('gh').name}
-                    description={getDesc(bang('gh'))}
-                    bang={bang('gh').trigger}
-                  />
-                  <GridItem
-                    area="md:[grid-area:2/9/3/13]"
-                    icon={<X className="w-5 h-5 text-white" />}
-                    title={bang('x').name}
-                    description={getDesc(bang('x'))}
-                    bang={bang('x').trigger}
-                  />
-                  <GridItem
-                    area="md:[grid-area:3/1/4/7]"
-                    icon={<MapPin className="w-5 h-5 text-green-500" />}
-                    title={bang('m').name}
-                    description={getDesc(bang('m'))}
-                    bang={bang('m').trigger}
-                  />
-                  <GridItem
-                    area="md:[grid-area:3/7/4/13]"
-                    icon={<Brain className="w-5 h-5 text-purple-500" />}
-                    title={bang('c').name}
-                    description={getDesc(bang('c'))}
-                    bang={bang('c').trigger}
-                  />
-                  <GridItem
-                    area="md:[grid-area:4/1/5/13]"
-                    icon={<Search className="w-5 h-5 text-orange-500" />}
-                    title={bang('d').name}
-                    description={getDesc(bang('d'))}
-                    bang={bang('d').trigger}
-                  />
-                </>
-              );
-            })()}
+          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+            {BANGS.map(b => (
+              <GridItem
+                key={b.trigger}
+                icon={<BangIcon trigger={b.trigger} />}
+                title={b.name}
+                description={getDesc(b)}
+                bang={b.trigger}
+              />
+            ))}
           </ul>
         </div>
 

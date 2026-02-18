@@ -134,15 +134,21 @@ function HomePage() {
 
   const descEn: Record<string, string> = {
     g: 'Universal search on Google',
-    y: 'Video search on YouTube',
-    w: 'Wikipedia articles',
-    gh: 'Code and projects on GitHub',
-    ghr: 'Direct access to GitHub repos',
-    m: 'Location and navigation',
+    b: 'Search on Bing',
     d: 'Private and secure search',
+    y: 'Video search on YouTube',
     x: 'Social media search',
     r: 'Discussions and communities',
+    w: 'Wikipedia articles',
+    mdn: 'Web docs (HTML, CSS, JS)',
+    so: 'Q&A for developers',
+    gh: 'Code and projects on GitHub',
+    ghr: 'Direct access to GitHub repos',
+    npm: 'Node.js packages on npm',
+    m: 'Location and navigation',
+    t: 'Google Translate',
     c: "OpenAI's AI assistant",
+    a: 'Shopping on Amazon',
     i: 'Image search',
   };
 
@@ -412,62 +418,69 @@ function HomePage() {
         <div className="mx-auto mb-12 max-w-2xl">
           <h2 className="mb-8 text-3xl font-semibold text-center text-white">{t.bangsTitle}</h2>
           <ul className="grid grid-cols-2 grid-rows-none gap-6 md:grid-cols-12 md:grid-rows-4lg:gap-6">
-            <GridItem
-              area="md:[grid-area:1/1/2/7]"
-              icon={<Image className="w-5 h-5 text-blue-500" />}
-              title={BANGS[10].name}
-              description={getDesc(BANGS[10])}
-              bang={BANGS[10].trigger}
-            />
-            <GridItem
-              area="md:[grid-area:1/7/2/13]"
-              icon={<Youtube className="w-5 h-5 text-red-500" />}
-              title={BANGS[1].name}
-              description={getDesc(BANGS[1])}
-              bang={BANGS[1].trigger}
-            />
-            <GridItem
-              area="md:[grid-area:2/1/3/5]"
-              icon={<Globe className="w-5 h-5 text-yellow-500" />}
-              title={BANGS[2].name}
-              description={getDesc(BANGS[2])}
-              bang={BANGS[2].trigger}
-            />
-            <GridItem
-              area="md:[grid-area:2/5/3/9]"
-              icon={<Github className="w-5 h-5 text-white" />}
-              title={BANGS[3].name}
-              description={getDesc(BANGS[3])}
-              bang={BANGS[3].trigger}
-            />
-            <GridItem
-              area="md:[grid-area:2/9/3/13]"
-              icon={<X className="w-5 h-5 text-white" />}
-              title={BANGS[7].name}
-              description={getDesc(BANGS[7])}
-              bang={BANGS[7].trigger}
-            />
-            <GridItem
-              area="md:[grid-area:3/1/4/7]"
-              icon={<MapPin className="w-5 h-5 text-green-500" />}
-              title={BANGS[5].name}
-              description={getDesc(BANGS[5])}
-              bang={BANGS[5].trigger}
-            />
-            <GridItem
-              area="md:[grid-area:3/7/4/13]"
-              icon={<Brain className="w-5 h-5 text-purple-500" />}
-              title={BANGS[9].name}
-              description={getDesc(BANGS[9])}
-              bang={BANGS[9].trigger}
-            />
-            <GridItem
-              area="md:[grid-area:4/1/5/13]"
-              icon={<Search className="w-5 h-5 text-orange-500" />}
-              title={BANGS[6].name}
-              description={getDesc(BANGS[6])}
-              bang={BANGS[6].trigger}
-            />
+            {(() => {
+              const bang = (trigger: string) => BANGS.find(b => b.trigger === trigger)!;
+              return (
+                <>
+                  <GridItem
+                    area="md:[grid-area:1/1/2/7]"
+                    icon={<Image className="w-5 h-5 text-blue-500" />}
+                    title={bang('i').name}
+                    description={getDesc(bang('i'))}
+                    bang={bang('i').trigger}
+                  />
+                  <GridItem
+                    area="md:[grid-area:1/7/2/13]"
+                    icon={<Youtube className="w-5 h-5 text-red-500" />}
+                    title={bang('y').name}
+                    description={getDesc(bang('y'))}
+                    bang={bang('y').trigger}
+                  />
+                  <GridItem
+                    area="md:[grid-area:2/1/3/5]"
+                    icon={<Globe className="w-5 h-5 text-yellow-500" />}
+                    title={bang('w').name}
+                    description={getDesc(bang('w'))}
+                    bang={bang('w').trigger}
+                  />
+                  <GridItem
+                    area="md:[grid-area:2/5/3/9]"
+                    icon={<Github className="w-5 h-5 text-white" />}
+                    title={bang('gh').name}
+                    description={getDesc(bang('gh'))}
+                    bang={bang('gh').trigger}
+                  />
+                  <GridItem
+                    area="md:[grid-area:2/9/3/13]"
+                    icon={<X className="w-5 h-5 text-white" />}
+                    title={bang('x').name}
+                    description={getDesc(bang('x'))}
+                    bang={bang('x').trigger}
+                  />
+                  <GridItem
+                    area="md:[grid-area:3/1/4/7]"
+                    icon={<MapPin className="w-5 h-5 text-green-500" />}
+                    title={bang('m').name}
+                    description={getDesc(bang('m'))}
+                    bang={bang('m').trigger}
+                  />
+                  <GridItem
+                    area="md:[grid-area:3/7/4/13]"
+                    icon={<Brain className="w-5 h-5 text-purple-500" />}
+                    title={bang('c').name}
+                    description={getDesc(bang('c'))}
+                    bang={bang('c').trigger}
+                  />
+                  <GridItem
+                    area="md:[grid-area:4/1/5/13]"
+                    icon={<Search className="w-5 h-5 text-orange-500" />}
+                    title={bang('d').name}
+                    description={getDesc(bang('d'))}
+                    bang={bang('d').trigger}
+                  />
+                </>
+              );
+            })()}
           </ul>
         </div>
 

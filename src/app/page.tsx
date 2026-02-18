@@ -164,6 +164,8 @@ function HomePage() {
         { code: '!m restaurant paris', desc: 'Google Maps search' },
   ];
 
+  const suggestUrl = currentUrl.replace('/search?q=%s', '/api/suggest?q=%s');
+
   const instructions = locale === 'fr' ? {
     chrome: {
       title: 'Google Chrome / Edge',
@@ -174,7 +176,8 @@ function HomePage() {
         'Nom : "Bangs!"',
         'Raccourci : "bangs" ou "b"',
         `URL : ${currentUrl}`,
-        'Cliquez sur "Ajouter" puis définissez comme moteur par défaut si souhaité',
+        `Suggestions URL : ${suggestUrl}`,
+        'Cliquez sur "Add as default"',
         '→ Les suggestions apparaîtront automatiquement dans la barre d\'adresse',
       ]
     },
@@ -208,7 +211,8 @@ function HomePage() {
         'Name: "Bangs!"',
         'Shortcut: "bangs" or "b"',
         `URL: ${currentUrl}`,
-        'Click "Add" then set as default if desired',
+        `Suggestions URL: ${suggestUrl}`,
+        'Click "Add as default"',
         '→ Suggestions will now appear automatically in the address bar',
       ]
     },
@@ -374,6 +378,14 @@ function HomePage() {
                               </Code>
                             ) : step.startsWith('→') ? (
                               <span className="text-green-400/80 font-medium">{step}</span>
+                            ) : step.includes(suggestUrl) ? (
+                              <>
+                                {step.split(suggestUrl)[0]}
+                                <Code className="px-1 py-0.5 text-xs bg-gray-800 rounded">
+                                  {suggestUrl}
+                                </Code>
+                                {step.split(suggestUrl)[1]}
+                              </>
                             ) : step.includes(currentUrl) ? (
                               <>
                                 {step.split(currentUrl)[0]}

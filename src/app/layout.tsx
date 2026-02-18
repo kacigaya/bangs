@@ -66,6 +66,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/*
+          OpenSearch autodiscovery — tells browsers (Chrome, Firefox, Edge)
+          where to find the search description and suggestion endpoint so they
+          can show autocomplete in the address bar when Bangs! is set as the
+          default search engine.
+        */}
+        <link
+          rel="search"
+          type="application/opensearchdescription+xml"
+          title="Bangs!"
+          href="/opensearch.xml"
+        />
+      </head>
       <body className={`${poppins.variable} antialiased`}>
         <Providers>
           {children}

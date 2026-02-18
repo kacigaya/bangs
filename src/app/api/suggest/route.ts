@@ -12,15 +12,15 @@ import { BANGS } from '@/lib/bangs';
  *   ["query", ["suggestion1", "suggestion2", ...]]
  *
  * Pipeline:
- *   1. If query starts with "!", filter BANGS by prefix → prepend "!trigger name" entries
- *   2. Run local engine (Trie + Levenshtein + N-Gram) on the text part
- *   3. Fetch Google Suggest and merge with weighted scoring
- *   4. Return top 8 as OpenSearch JSON
+ *   1. Bang-prefix queries (e.g. "!y lo") → bang matches + Google suggestions
+ *      prefixed with the bang ("!y lofi music", "!y lo-fi beats", …)
+ *   2. Plain text queries → Google Suggest (primary) merged with local engine
+ *      (Trie + Levenshtein + N-Gram) for offline/fallback coverage
  *
  * Spec: https://developer.mozilla.org/en-US/docs/Web/OpenSearch#providing_search_suggestions
  */
 
-// Init the engine once per cold start (server-side singleton)
+// Server-side singleton — initialised once per cold start
 let engineReady = false;
 function ensureEngine() {
   if (!engineReady) {
@@ -30,74 +30,112 @@ function ensureEngine() {
   }
 }
 
+/** Detect the user's preferred language from the Accept-Language header */
+function getLang(request: NextRequest): string {
+  const al = request.headers.get('accept-language') ?? '';
+  const primary = al.split(',')[0]?.split(';')[0]?.trim() ?? 'en';
+  return primary || 'en';
+}
+
+/** Fetch Google Suggest with a timeout; returns [] on any failure */
+async function fetchGoogleSuggest(query: string, lang: string): Promise<string[]> {
+  try {
+    const url = `https://suggestqueries.google.com/complete/search?client=firefox&hl=${encodeURIComponent(lang)}&q=${encodeURIComponent(query)}`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'application/json',
+      },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json() as [string, string[]];
+    return Array.isArray(data[1]) ? data[1].slice(0, 10) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Normalise a string for deduplication: lowercase, collapse whitespace */
+function norm(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get('q')?.trim() ?? '';
 
   if (!q) {
-    return NextResponse.json([q, []], {
+    return NextResponse.json(['', []], {
       headers: { 'Cache-Control': 'no-store' },
     });
   }
 
   ensureEngine();
 
+  const lang = getLang(request);
   const suggestions: string[] = [];
   const seen = new Set<string>();
 
-  // ── 1. Bang suggestions ────────────────────────────────────────────────────
-  if (q.startsWith('!')) {
-    const prefix = q.slice(1).toLowerCase();
-    const bangMatches = BANGS
-      .filter(b => b.trigger.startsWith(prefix) || b.name.toLowerCase().startsWith(prefix))
-      .slice(0, 4);
+  const addSuggestion = (s: string) => {
+    const key = norm(s);
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      suggestions.push(s);
+    }
+  };
+
+  const isBangQuery = q.startsWith('!');
+
+  if (isBangQuery) {
+    // ── Bang query handling ──────────────────────────────────────────────────
+    // e.g. "!y", "!y lofi", "!gh next"
+    const parts = q.slice(1).split(/\s+/);
+    const bangPrefix = parts[0]?.toLowerCase() ?? '';
+    const textAfterBang = parts.slice(1).join(' ').trim();
+
+    // 1a. Matching bang shortcuts (always first)
+    const bangMatches = BANGS.filter(
+      b => b.trigger.startsWith(bangPrefix) || b.name.toLowerCase().startsWith(bangPrefix)
+    ).slice(0, 5);
 
     for (const b of bangMatches) {
-      const entry = `!${b.trigger} — ${b.name}`;
-      if (!seen.has(entry)) {
-        seen.add(entry);
-        suggestions.push(entry);
+      if (textAfterBang) {
+        // "!y lofi" → show "!y lofi" itself as first suggestion
+        addSuggestion(`!${b.trigger} ${textAfterBang}`);
+      } else {
+        // "!y" with no text → show "!y — YouTube"
+        addSuggestion(`!${b.trigger} — ${b.name}`);
       }
     }
-  }
 
-  // ── 2. Text part of the query ──────────────────────────────────────────────
-  const textQuery = q.startsWith('!')
-    ? q.replace(/^!\S+\s*/, '').trim()
-    : q;
-
-  if (textQuery.length >= 1) {
-    // Local engine (Trie + Levenshtein + N-Gram)
-    const localPredictions = predict(textQuery, 6);
-
-    // Google Suggest (best-effort, 2s timeout)
-    let googleSuggestions: string[] = [];
-    try {
-      const googleUrl = `https://suggestqueries.google.com/complete/search?client=firefox&hl=en&q=${encodeURIComponent(textQuery)}`;
-      const res = await fetch(googleUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-          Accept: 'application/json',
-        },
-        signal: AbortSignal.timeout(2000),
-      });
-      if (res.ok) {
-        const data = await res.json() as [string, string[]];
-        googleSuggestions = Array.isArray(data[1]) ? data[1].slice(0, 8) : [];
+    // 1b. If there's a text portion, fetch Google suggestions and prefix with bang
+    if (textAfterBang && bangMatches.length > 0) {
+      const exact = bangMatches[0];
+      const googleSuggestions = await fetchGoogleSuggest(textAfterBang, lang);
+      for (const gs of googleSuggestions) {
+        addSuggestion(`!${exact.trigger} ${gs}`);
       }
-    } catch {
-      // Network error or timeout — fall through to local results only
     }
 
-    const merged = mergeWithGoogle(localPredictions, googleSuggestions, 7);
+  } else {
+    // ── Plain text query ─────────────────────────────────────────────────────
+    // Google Suggest is the primary source; local engine fills gaps
 
+    // Fetch Google and local in parallel
+    const [googleSuggestions, localPredictions] = await Promise.all([
+      fetchGoogleSuggest(q, lang),
+      Promise.resolve(predict(q, 8)),
+    ]);
+
+    // Google results first — strongest signal for real-world queries
+    for (const gs of googleSuggestions) {
+      addSuggestion(gs);
+    }
+
+    // Local engine results (Trie + fuzzy + N-Gram) as supplementary
+    const merged = mergeWithGoogle(localPredictions, [], 8);
     for (const p of merged) {
-      const text = q.startsWith('!') && q.includes(' ')
-        ? `${q.split(' ')[0]} ${p.text}`  // keep the bang prefix: "!y lofi music"
-        : p.text;
-      if (!seen.has(text)) {
-        seen.add(text);
-        suggestions.push(text);
-      }
+      addSuggestion(p.text);
     }
   }
 
@@ -107,7 +145,6 @@ export async function GET(request: NextRequest) {
     headers: {
       'Content-Type': 'application/x-suggestions+json',
       'Cache-Control': 'public, max-age=60, stale-while-revalidate=30',
-      // Required for Firefox to accept suggestions from a different path
       'Access-Control-Allow-Origin': '*',
     },
   });

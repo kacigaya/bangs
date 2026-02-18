@@ -127,6 +127,9 @@ function HomePage() {
     hideInstructions: locale === 'fr' ? 'Masquer les instructions' : 'Hide instructions',
     bangsTitle: locale === 'fr' ? 'Bangs disponibles' : 'Available bangs',
     examplesTitle: locale === 'fr' ? "Exemples d'utilisation" : 'Usage examples',
+    suggestionsNote: locale === 'fr'
+      ? '💡 Pour les suggestions dans la barre d\'adresse : si vous aviez déjà ajouté Bangs!, supprimez-le et re-ajoutez-le pour activer l\'autocomplétion.'
+      : '💡 For address bar suggestions: if you already added Bangs!, remove it and re-add it to enable autocomplete.',
   } as const;
 
   const descEn: Record<string, string> = {
@@ -166,28 +169,30 @@ function HomePage() {
       title: 'Google Chrome / Edge',
       steps: [
         'Allez dans Paramètres → Moteur de recherche → Gérer les moteurs de recherche',
+        'Si "Bangs!" est déjà présent, supprimez-le (cliquez sur ⋮ → Supprimer)',
         'Cliquez sur "Ajouter" à côté de "Moteurs de recherche du site"',
         'Nom : "Bangs!"',
         'Raccourci : "bangs" ou "b"',
         `URL : ${currentUrl}`,
-        'Cliquez sur "Ajouter" puis définissez comme moteur par défaut si souhaité'
+        'Cliquez sur "Ajouter" puis définissez comme moteur par défaut si souhaité',
+        '→ Les suggestions apparaîtront automatiquement dans la barre d\'adresse',
       ]
     },
     firefox: {
       title: 'Firefox',
       steps: [
-        'Allez dans Paramètres → Recherche',
-        'Faites défiler vers "Raccourcis de recherche"',
-        'Cliquez sur "Ajouter un moteur de recherche"',
+        'Cliquez sur le bouton "Ajouter comme moteur de recherche" ci-dessus — Firefox détecte automatiquement le moteur via OpenSearch',
+        'Ou : allez dans Paramètres → Recherche → Raccourcis de recherche → Ajouter',
         'Nom : "Bangs!"',
         `URL : ${currentUrl}`,
-        'Définissez un mot-clé comme "bangs" ou "b"'
+        'Définissez un mot-clé comme "bangs" ou "b"',
+        '→ Les suggestions s\'affichent immédiatement dans la barre d\'adresse',
       ]
     },
     safari: {
       title: 'Safari',
       steps: [
-        'Safari ne permet pas d\'ajouter facilement des moteurs personnalisés',
+        'Safari ne supporte pas les suggestions OpenSearch',
         'Alternative : créez un signet avec ce script JavaScript :',
         `javascript:location.href='${currentUrl.replace('%s', '')}'+encodeURIComponent(prompt('Recherche Bangs:'));`,
         'Utilisez ce signet pour rechercher rapidement'
@@ -198,28 +203,30 @@ function HomePage() {
       title: 'Google Chrome / Edge',
       steps: [
         'Go to Settings → Search engine → Manage search engines',
+        'If "Bangs!" is already listed, delete it first (click ⋮ → Delete)',
         'Click "Add" next to "Site search"',
         'Name: "Bangs!"',
         'Shortcut: "bangs" or "b"',
         `URL: ${currentUrl}`,
-        'Click "Add" then set as default if desired'
+        'Click "Add" then set as default if desired',
+        '→ Suggestions will now appear automatically in the address bar',
       ]
     },
     firefox: {
       title: 'Firefox',
       steps: [
-        'Go to Settings → Search',
-        'Scroll to "Search Shortcuts"',
-        'Click "Add search engine"',
+        'Click the "Add as search engine" button above — Firefox auto-detects the engine via OpenSearch',
+        'Or: go to Settings → Search → Search Shortcuts → Add search engine',
         'Name: "Bangs!"',
         `URL: ${currentUrl}`,
-        'Set a keyword like "bangs" or "b"'
+        'Set a keyword like "bangs" or "b"',
+        '→ Suggestions appear immediately in the address bar',
       ]
     },
     safari: {
       title: 'Safari',
       steps: [
-        'Safari doesn\'t easily allow custom search engines',
+        'Safari does not support OpenSearch suggestions',
         'Alternative: create a bookmark with this JavaScript:',
         `javascript:location.href='${currentUrl.replace('%s', '')}'+encodeURIComponent(prompt('Bangs Search:'));`,
         'Use this bookmark for quick searches'
@@ -308,7 +315,7 @@ function HomePage() {
           </div>
           
           {/* Add Search Engine Button */}
-          <div className="mt-6 w-full text-center">
+          <div className="mt-6 w-full text-center space-y-3">
             <div className="inline-block relative p-2 rounded-2xl border border-gray-800 shadow-2xl">
               <GlowingEffect
                 spread={40}
@@ -322,12 +329,23 @@ function HomePage() {
                 color="primary"
                 startContent={<div className="w-4 h-4" />}
                 endContent={<div className="flex justify-center">{showInstructions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}</div>}
-                onPress={() => setShowInstructions(!showInstructions)}
+                onPress={() => {
+                  // Firefox: trigger OpenSearch auto-install via AddSearchProvider
+                  // This installs the engine from /opensearch.xml with suggestions included
+                  if (typeof window !== 'undefined' && 'external' in window && typeof (window as { external?: { AddSearchProvider?: (url: string) => void } }).external?.AddSearchProvider === 'function') {
+                    (window as { external: { AddSearchProvider: (url: string) => void } }).external.AddSearchProvider(`${window.location.origin}/opensearch.xml`);
+                  }
+                  setShowInstructions(!showInstructions);
+                }}
                 className="relative px-3 py-3 font-semibold text-black bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg border-2 shadow-lg transition-all duration-200 transform hover:shadow-2xl hover:scale-100 hover:-translate-y-1 active:scale-95 active:translate-y-0 border-yellow-400/30"
               >
                 {t.addSearchEngine}
               </Button>
             </div>
+            {/* Suggestions re-add notice */}
+            <p className="text-xs text-gray-500 max-w-md mx-auto">
+              {t.suggestionsNote}
+            </p>
           </div>
 
           {/* Instructions */}
@@ -354,6 +372,8 @@ function HomePage() {
                               <Code className="block p-2 mt-1 text-xs break-all bg-gray-800 rounded">
                                 {step}
                               </Code>
+                            ) : step.startsWith('→') ? (
+                              <span className="text-green-400/80 font-medium">{step}</span>
                             ) : step.includes(currentUrl) ? (
                               <>
                                 {step.split(currentUrl)[0]}

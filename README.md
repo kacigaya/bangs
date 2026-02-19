@@ -49,22 +49,34 @@ Once configured, type in your address bar:
 ## Features
 
 - **Instant redirects** – No loading screens, everything happens client-side
+- **Search history** – Automatically track and re-use recent searches from localStorage
+- **Smart suggestions** – Address bar suggestions via OpenSearch with smart bang ranking
+- **17 bangs** – Comprehensive shortcuts to all major search engines and tools
 - **Customizable bangs** – Easily add, remove or tweak shortcuts in `src/lib/bangs.ts`
 - **Beautiful dark UI** – Tailwind CSS, HeroUI components & orange gradient branding
 - **Interactive glow & particles** – `tsParticles` sparkles and mouse-follow glow effects
 - **Minimal redirect page** – `/search` shows only a subtle sparkle animation while redirecting
-- **Fully typed** – Next.js 14 with TypeScript & App Router
+- **Fully typed** – Next.js 16 with TypeScript & App Router
 
 | Bang | Engine | Example |
 |------|--------|---------|
-| `!i` | Google Images | `!i Batman` |
+| `!g` | Google | `!g nextjs tutorials` |
+| `!b` | Bing | `!b python docs` |
+| `!d` | DuckDuckGo | `!d privacy` |
 | `!y` | YouTube | `!y synthwave mix` |
+| `!x` | X (Twitter) | `!x web development` |
+| `!r` | Reddit | `!r react news` |
 | `!w` | Wikipedia | `!w Alan Turing` |
+| `!mdn` | MDN Web Docs | `!mdn javascript` |
+| `!so` | Stack Overflow | `!so javascript async` |
 | `!gh` | GitHub code search | `!gh nextjs middleware` |
 | `!ghr` | GitHub repo | `!ghr vercel/next.js` |
+| `!npm` | npm | `!npm typescript` |
 | `!m` | Google Maps | `!m coffee near me` |
-| `!d` | DuckDuckGo | `!d privacy` |
-| … | Add your own! | `src/lib/bangs.ts` |
+| `!t` | Google Translate | `!t hello spanish` |
+| `!c` | ChatGPT | `!c explain quantum computing` |
+| `!a` | Amazon | `!a wireless headphones` |
+| `!i` | Google Images | `!i Batman` |
 
 ---
 
@@ -76,27 +88,28 @@ git clone https://github.com/gayakaci20/bangs.git
 cd bangs
 
 # 2. Install dependencies
-npm install
+bun install
 
 # 3. Run in dev mode
-npm run dev
+bun run dev
 # → http://localhost:3000
 ```
 
 Build for production:
 ```bash
-npm run build && npm start
+bun run build && bun start
 ```
 
 ---
 
 ## Tech Stack
 
-- **Next.js** (App Router)
+- **Next.js 16** (App Router)
 - **TypeScript**
 - **Tailwind CSS** & **HeroUI**
 - **Lucide React** icons
 - **tsParticles** (sparkles) + **Framer Motion**
+- **Bun** package manager & runtime
 
 ---
 
@@ -120,5 +133,5 @@ src/
 1. Fork this repo
 2. Create a branch `feat/my-awesome-bang`
 3. Add / edit entries in `src/lib/bangs.ts`
-4. `pnpm test` & `npm run lint`
+4. `bun test` & `bun run lint`
 5. Open a Pull Request

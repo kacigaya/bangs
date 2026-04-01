@@ -1,6 +1,14 @@
-# <img src="public/favicon.png" width="32" height="32" style="vertical-align:middle"> Bangs! – Lightning-fast Search Shortcuts
+<p align="center">
+  <img src="public/favicon.png" alt="Logo" width="200">
+</p>
 
-Bangs! is a Lightning-fast search shortcut service inspired by DuckDuckGo's "!bangs".
+<h1 align="center">Bangs!</h1>
+
+<p align="center">
+   <strong>Lightning-fast Search Shortcuts.</strong><br>
+   <em>Inspired by DuckDuckGo's "!bangs".</em>
+</p>
+  
 Type commands like `!i cat`, `!y lo-fi mix` or `!m paris café` to jump straight to the right search engine – **instantly**.
 
 > **Live Demo**: [https://bangs-beta.vercel.app](https://bangs-beta.vercel.app)  
